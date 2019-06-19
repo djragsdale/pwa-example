@@ -2,10 +2,7 @@
   "name": "pwa-example",
   "version": "0.1.0",
   "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "main": "server.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/djragsdale/pwa-example.git"
@@ -15,5 +12,21 @@
   "bugs": {
     "url": "https://github.com/djragsdale/pwa-example/issues"
   },
-  "homepage": "https://github.com/djragsdale/pwa-example#readme"
+  "homepage": "https://github.com/djragsdale/pwa-example#readme",
+  "engines": {
+    "node": "8.x"
+  },
+  "scripts": {
+    "dev": "env-cmd npm start",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "debug": "^4.1.1",
+    "express": "^4.16.4",
+    "express-http-to-https": "^1.1.4",
+    "node-fetch": "^2.3.0"
+  },
+  "devDependencies": {
+    "env-cmd": "^9.0.3"
+  }
 }
