@@ -46,6 +46,12 @@ body {
   justify-content: flex-start;
 }
 
+@media all and (display-mode: standalone) {
+  body {
+    background-color: yellow;
+  }
+}
+
 /**
  * Header
  */
