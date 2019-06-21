@@ -47,6 +47,12 @@ events.forEach((eventName) => {
 
 EventBus.$on('addLocation', ({ data }) => {
   addLocation(data);
+  EventBus.$emit('refreshLocations');
+});
+
+EventBus.$on('removeLocation', ({ data }) => {
+  removeLocation(data);
+  EventBus.$emit('refreshLocations');
 });
 
 Vue.component('pwa-add-button', {
@@ -86,47 +92,49 @@ Vue.component('pwa-add-dialog', {
     </div>
   `,
   data() {
+    const options = [
+      {
+        text: 'Dehli, India',
+        value: '28.6472799,76.8130727',
+      },
+      {
+        text: 'Jakarta, Indonesia',
+        value: '-5.7759362,106.1174957',
+      },
+      {
+        text: 'London, UK',
+        value: '51.5287718,-0.2416815',
+      },
+      {
+        text: 'New York, USA',
+        value: '40.6976701,-74.2598666',
+      },
+      {
+        text: 'Paris, France',
+        value: '48.8589507,2.2770202',
+      },
+      {
+        text: 'Port Lockroy, Antarctica',
+        value: '-64.8251018,-63.496847',
+      },
+      {
+        text: 'San Francisco, USA',
+        value: '37.757815,-122.5076401',
+      },
+      {
+        text: 'Shanghai, China',
+        value: '31.2243085,120.9162955',
+      },
+      {
+        text: 'Tokyo, Japan',
+        value: '35.6735408,139.5703032',
+      },
+    ];
+
     return {
       isVisible: false,
-      options: [
-        {
-          text: 'Dehli, India',
-          value: '28.6472799,76.8130727',
-        },
-        {
-          text: 'Jakarta, Indonesia',
-          value: '-5.7759362,106.1174957',
-        },
-        {
-          text: 'London, UK',
-          value: '51.5287718,-0.2416815',
-        },
-        {
-          text: 'New York, USA',
-          value: '40.6976701,-74.2598666',
-        },
-        {
-          text: 'Paris, France',
-          value: '48.8589507,2.2770202',
-        },
-        {
-          text: 'Port Lockroy, Antarctica',
-          value: '-64.8251018,-63.496847',
-        },
-        {
-          text: 'San Francisco, USA',
-          value: '37.757815,-122.5076401',
-        },
-        {
-          text: 'Shanghai, China',
-          value: '31.2243085,120.9162955',
-        },
-        {
-          text: 'Tokyo, Japan',
-          value: '35.6735408,139.5703032',
-        },
-      ],
-      selected: '',
+      options: options,
+      selected: options[0].value,
     };
   },
   mounted() {
@@ -155,13 +163,13 @@ Vue.component('pwa-add-dialog', {
 
 Vue.component('pwa-forecast-card', {
   template: `
-    <div :id="location.geo" class="weather-card">
+    <div v-if="isVisible" :id="location.geo" class="weather-card">
       <div v-if="isLoading" class="card-spinner">
         <svg viewBox="0 0 32 32" width="32" height="32">
           <circle cx="16" cy="16" r="14" fill="none"></circle>
         </svg>
       </div>
-      <button class="remove-city">&times;</button>
+      <button class="remove-city" @click="handleRemove">&times;</button>
       <div class="city-key" hidden></div>
       <div class="card-last-updated" hidden>{{ lastUpdated }}</div>
       <div class="location">&nbsp;</div>
@@ -220,6 +228,7 @@ Vue.component('pwa-forecast-card', {
       description: null,
       futureTiles: [],
       isLoading: true,
+      isVisible: true,
       lastUpdated: 0,
       location: {},
       sunrise: null,
@@ -229,14 +238,24 @@ Vue.component('pwa-forecast-card', {
   },
   mounted() {
     EventBus.$on('renderForecast', ({ key }) => {
+      if (!(this.geokey in weatherApp.selectedLocations)) {
+        this.isVisible = false;
+      }
       if (key !== this.geokey) return;
       if (!(key in weatherApp.selectedLocations)) return;
 
-      this.setLocation(weatherApp.selectedLocations[key].forecast);
-      this.isLoading = false;
+      console.log('setLocation', weatherApp.selectedLocations[key].forecast);
+      if (weatherApp.selectedLocations[key].forecast) {
+        this.setLocation(weatherApp.selectedLocations[key].forecast);
+        this.isLoading = false;
+      }
+      this.isVisible = true;
     });
   },
   methods: {
+    handleRemove() {
+
+    },
     setLocation(data) {
       console.log('setLocation', JSON.parse(JSON.stringify(data)));
       if (!data) {
@@ -336,10 +355,13 @@ Vue.component('pwa-forecast-list', {
     EventBus.$on('init', () => {
       this.refreshLocations();
     });
-    EventBus.$on('addLocation', () => {
-      this.refreshLocations();
-    });
-    EventBus.$on('removeLocation', () => {
+    // EventBus.$on('addLocation', () => {
+    //   this.refreshLocations();
+    // });
+    // EventBus.$on('removeLocation', () => {
+    //   this.refreshLocations();
+    // });
+    EventBus.$on('refreshLocations', () => {
       this.refreshLocations();
     });
     EventBus.$on('renderForecast', () => {
@@ -395,11 +417,11 @@ function addLocation({ geo, label }) {
  *
  * @param {Event} evt
  */
-function removeLocation(evt) {
-  const parent = evt.srcElement.parentElement;
-  parent.setAttribute('hidden', true);
-  if (weatherApp.selectedLocations[parent.id]) {
-    delete weatherApp.selectedLocations[parent.id];
+function removeLocation(geoKey) {
+  // const parent = evt.srcElement.parentElement;
+  // parent.setAttribute('hidden', true);
+  if (weatherApp.selectedLocations[geoKey]) {
+    delete weatherApp.selectedLocations[geoKey];
     saveLocationList(weatherApp.selectedLocations);
   }
 }
