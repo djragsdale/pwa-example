@@ -17,10 +17,252 @@
  */
 'use strict';
 
+import EventBus from '/scripts/EventBus.mjs';
+import Vue from '/scripts/vue/vue.esm.browser.js';
+
 const weatherApp = {
   selectedLocations: {},
   addDialogContainer: document.getElementById('addDialogContainer'),
 };
+
+const events = [
+  'addLocation',
+  'getForecastCard',
+  'getForecastFromCache',
+  'getForecastFromNetwork',
+  'init',
+  'loadLocationList',
+  'removeLocation',
+  'renderForecast',
+  'saveLocationList',
+  'toggleAddDialog',
+  'updateData',
+];
+
+events.forEach((eventName) => {
+  EventBus.$on(eventName, () => {
+    console.log(`EVENT LOGGER: ${eventName}`);
+  });
+});
+
+Vue.component('pwa-forecast-list', {
+  template: `
+    <div>
+      <pwa-forecast-card v-for="geoKey in locationKeys" :geokey="geoKey"></pwa-forecast-card>
+    </div>
+  `,
+  data() {
+    return {
+      locations: {},
+    }
+  },
+  computed: {
+    locationKeys() {
+      return Object.keys(this.locations);
+    },
+  },
+  mounted() {
+    EventBus.$on('init', () => {
+      this.refreshLocations();
+    });
+    EventBus.$on('addLocation', () => {
+      this.refreshLocations();
+    });
+    EventBus.$on('removeLocation', () => {
+      this.refreshLocations();
+    });
+    EventBus.$on('renderForecast', () => {
+      this.refreshLocations();
+    });
+  },
+  methods: {
+    refreshLocations() {
+      this.locations = weatherApp.selectedLocations;
+    },
+  },
+});
+
+Vue.component('pwa-forecast-card', {
+  template: `
+    <div :id="location.geo" class="weather-card">
+      <div v-if="isLoading" class="card-spinner">
+        <svg viewBox="0 0 32 32" width="32" height="32">
+          <circle cx="16" cy="16" r="14" fill="none"></circle>
+        </svg>
+      </div>
+      <button class="remove-city">&times;</button>
+      <div class="city-key" hidden></div>
+      <div class="card-last-updated" hidden>{{ lastUpdated }}</div>
+      <div class="location">&nbsp;</div>
+      <div class="date">{{ date }}</div>
+      <div class="description">{{ description }}</div>
+      <div class="current">
+        <div class="visual">
+          <div :class="currentIconName" class="icon"></div>
+          <div class="temperature">
+            <span class="value">{{ currentTemperature }}</span><span class="scale">°F</span>
+          </div>
+        </div>
+        <div class="description">
+          <div class="humidity">
+            <span class="label">Humidity:</span>
+            <span class="value">{{ currentHumidity }}</span><span class="scale">%</span>
+          </div>
+          <div class="wind">
+            <span class="label">Wind:</span>
+            <span class="value">{{ currentWindSpeed }}</span>
+            <span class="scale">mph</span>
+            <span class="direction">{{ currentWindDirection }}</span>°
+          </div>
+          <div class="sunrise">
+            <span class="label">Sunrise:</span>
+            <span class="value">{{ sunrise }}</span>
+          </div>
+          <div class="sunset">
+              <span class="label">Sunset:</span>
+              <span class="value">{{ sunset }}</span>
+            </div>
+        </div>
+      </div>
+      <div v-if="location" class="future">
+        <div v-for="forecast in futureTiles" class="oneday">
+          <div class="date">{{ forecast.date }}</div>
+          <div :class="forecast.iconClass" class="icon"></div>
+          <div class="temp-high">
+            <span class="value">{{ forecast.temperatureHigh }}</span>°
+          </div>
+          <div class="temp-low">
+            <span class="value">{{ forecast.temperatureLow }}</span>°
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  props: {
+    geokey: String,
+  },
+  data() {
+    return {
+      currentHumidity: null,
+      currentIconName: null,
+      currentTemperature: null,
+      currentWindDirection: null,
+      currentWindSpeed: null,
+      date: null,
+      description: null,
+      futureTiles: [],
+      isLoading: true,
+      lastUpdated: 0,
+      location: {},
+      sunrise: null,
+      sunset: null,
+      time: null,
+    };
+  },
+  mounted() {
+    EventBus.$on('renderForecast', ({ key }) => {
+      if (key !== this.geokey) return;
+      if (!(key in weatherApp.selectedLocations)) return;
+
+      this.setLocation(weatherApp.selectedLocations[key].forecast);
+      this.isLoading = false;
+    });
+  },
+  methods: {
+    setLocation(data) {
+      console.log('setLocation', JSON.parse(JSON.stringify(data)));
+      if (!data) {
+        console.log('data not found');
+        return;
+      }
+      // Find out when the element was last updated.
+      // const cardLastUpdatedElem = card.querySelector('.card-last-updated');
+      // const cardLastUpdated = cardLastUpdatedElem.textContent;
+      // const lastUpdated = parseInt(cardLastUpdated);
+
+      // If the data on the element is newer, skip the update.
+      if (this.lastUpdated >= data.currently.time) {
+        return;
+      }
+
+      this.location = data;
+
+      // cardLastUpdatedElem.textContent = data.currently.time;
+      this.lastUpdated = parseInt(data.currently.time);
+
+      // Render the forecast data into the card.
+      // card.querySelector('.description').textContent = data.currently.summary;
+      this.description = data.currently.summary;
+      const forecastFrom = luxon.DateTime
+        .fromSeconds(data.currently.time)
+        .setZone(data.timezone)
+        .toFormat('DDDD t');
+      // card.querySelector('.date').textContent = forecastFrom;
+      this.date = forecastFrom;
+      // card.querySelector('.current .icon')
+      //   .className = `icon ${data.currently.icon}`;
+      this.currentIconName = data.currently.icon;
+      // card.querySelector('.current .temperature .value')
+        // .textContent = Math.round(data.currently.temperature);
+      this.currentTemperature = Math.round(data.currently.temperature);
+      // card.querySelector('.current .humidity .value')
+        // .textContent = Math.round(data.currently.humidity * 100);
+      this.currentHumidity = Math.round(data.currently.humidity * 100);
+      // card.querySelector('.current .wind .value')
+      //   .textContent = Math.round(data.currently.windSpeed);
+      this.currentWindSpeed = Math.round(data.currently.windSpeed);
+      // card.querySelector('.current .wind .direction')
+      //   .textContent = Math.round(data.currently.windBearing);
+      this.currentWindDirection = Math.round(data.currently.windBearing);
+      const sunrise = luxon.DateTime
+        .fromSeconds(data.daily.data[0].sunriseTime)
+        .setZone(data.timezone)
+        .toFormat('t');
+      // card.querySelector('.current .sunrise .value').textContent = sunrise;
+      this.sunrise = sunrise;
+      const sunset = luxon.DateTime
+        .fromSeconds(data.daily.data[0].sunsetTime)
+        .setZone(data.timezone)
+        .toFormat('t');
+      // card.querySelector('.current .sunset .value').textContent = sunset;
+      this.sunset = sunset;
+
+      // Render the next 7 days.
+      // const futureTiles = card.querySelectorAll('.future .oneday');
+      // futureTiles.forEach((tile, index) => {
+      //   const forecast = data.daily.data[index + 1];
+      //   const forecastFor = luxon.DateTime
+      //     .fromSeconds(forecast.time)
+      //     .setZone(data.timezone)
+      //     .toFormat('ccc');
+      //   tile.querySelector('.date').textContent = forecastFor;
+      //   tile.querySelector('.icon').className = `icon ${forecast.icon}`;
+      //   tile.querySelector('.temp-high .value')
+      //     .textContent = Math.round(forecast.temperatureHigh);
+      //   tile.querySelector('.temp-low .value')
+      //     .textContent = Math.round(forecast.temperatureLow);
+      // });
+      this.futureTiles = data.daily.data.slice(1)
+        .map((forecast) => {
+          const forecastFor = luxon.DateTime
+            .fromSeconds(forecast.time)
+            .setZone(data.timezone)
+            .toFormat('ccc');
+          
+          return {
+            date: forecastFor,
+            iconClass: forecast.icon,
+            temperatureHigh: Math.round(forecast.temperatureHigh),
+            temperatureLow: Math.round(forecast.temperatureLow),
+          };
+        });
+    },
+  },
+});
+
+new Vue({
+  el: '#app'
+});
 
 /**
  * Toggles the visibility of the add location dialog box.
@@ -40,15 +282,18 @@ function addLocation() {
   const selected = select.options[select.selectedIndex];
   const geo = selected.value;
   const label = selected.textContent;
-  const location = {label: label, geo: geo};
+  const location = { label, geo };
   // Create a new card & get the weather data from the server
-  const card = getForecastCard(location);
-  getForecastFromNetwork(geo).then((forecast) => {
-    renderForecast(card, forecast);
-  });
+  // const card = getForecastCard(location);
   // Save the updated list of selected cities.
   weatherApp.selectedLocations[geo] = location;
   saveLocationList(weatherApp.selectedLocations);
+  getForecastFromNetwork(geo).then((forecast) => {
+    // renderForecast(card, forecast);
+    weatherApp.selectedLocations[geo].forecast = forecast;
+    saveLocationList(weatherApp.selectedLocations);
+    EventBus.$emit('renderForecast', { key: geo });
+  });
 }
 
 /**
@@ -65,79 +310,79 @@ function removeLocation(evt) {
   }
 }
 
-/**
- * Renders the forecast data into the card element.
- *
- * @param {Element} card The card element to update.
- * @param {Object} data Weather forecast data to update the element with.
- */
-function renderForecast(card, data) {
-  if (!data) {
-    // There's no data, skip the update.
-    return;
-  }
+// /**
+//  * Renders the forecast data into the card element.
+//  *
+//  * @param {Element} card The card element to update.
+//  * @param {Object} data Weather forecast data to update the element with.
+//  */
+// function renderForecast(card, data) {
+//   if (!data) {
+//     // There's no data, skip the update.
+//     return;
+//   }
 
-  // Find out when the element was last updated.
-  const cardLastUpdatedElem = card.querySelector('.card-last-updated');
-  const cardLastUpdated = cardLastUpdatedElem.textContent;
-  const lastUpdated = parseInt(cardLastUpdated);
+//   // Find out when the element was last updated.
+//   const cardLastUpdatedElem = card.querySelector('.card-last-updated');
+//   const cardLastUpdated = cardLastUpdatedElem.textContent;
+//   const lastUpdated = parseInt(cardLastUpdated);
 
-  // If the data on the element is newer, skip the update.
-  if (lastUpdated >= data.currently.time) {
-    return;
-  }
-  cardLastUpdatedElem.textContent = data.currently.time;
+//   // If the data on the element is newer, skip the update.
+//   if (lastUpdated >= data.currently.time) {
+//     return;
+//   }
+//   cardLastUpdatedElem.textContent = data.currently.time;
 
-  // Render the forecast data into the card.
-  card.querySelector('.description').textContent = data.currently.summary;
-  const forecastFrom = luxon.DateTime
-      .fromSeconds(data.currently.time)
-      .setZone(data.timezone)
-      .toFormat('DDDD t');
-  card.querySelector('.date').textContent = forecastFrom;
-  card.querySelector('.current .icon')
-      .className = `icon ${data.currently.icon}`;
-  card.querySelector('.current .temperature .value')
-      .textContent = Math.round(data.currently.temperature);
-  card.querySelector('.current .humidity .value')
-      .textContent = Math.round(data.currently.humidity * 100);
-  card.querySelector('.current .wind .value')
-      .textContent = Math.round(data.currently.windSpeed);
-  card.querySelector('.current .wind .direction')
-      .textContent = Math.round(data.currently.windBearing);
-  const sunrise = luxon.DateTime
-      .fromSeconds(data.daily.data[0].sunriseTime)
-      .setZone(data.timezone)
-      .toFormat('t');
-  card.querySelector('.current .sunrise .value').textContent = sunrise;
-  const sunset = luxon.DateTime
-      .fromSeconds(data.daily.data[0].sunsetTime)
-      .setZone(data.timezone)
-      .toFormat('t');
-  card.querySelector('.current .sunset .value').textContent = sunset;
+//   // Render the forecast data into the card.
+//   card.querySelector('.description').textContent = data.currently.summary;
+//   const forecastFrom = luxon.DateTime
+//       .fromSeconds(data.currently.time)
+//       .setZone(data.timezone)
+//       .toFormat('DDDD t');
+//   card.querySelector('.date').textContent = forecastFrom;
+//   card.querySelector('.current .icon')
+//       .className = `icon ${data.currently.icon}`;
+//   card.querySelector('.current .temperature .value')
+//       .textContent = Math.round(data.currently.temperature);
+//   card.querySelector('.current .humidity .value')
+//       .textContent = Math.round(data.currently.humidity * 100);
+//   card.querySelector('.current .wind .value')
+//       .textContent = Math.round(data.currently.windSpeed);
+//   card.querySelector('.current .wind .direction')
+//       .textContent = Math.round(data.currently.windBearing);
+//   const sunrise = luxon.DateTime
+//       .fromSeconds(data.daily.data[0].sunriseTime)
+//       .setZone(data.timezone)
+//       .toFormat('t');
+//   card.querySelector('.current .sunrise .value').textContent = sunrise;
+//   const sunset = luxon.DateTime
+//       .fromSeconds(data.daily.data[0].sunsetTime)
+//       .setZone(data.timezone)
+//       .toFormat('t');
+//   card.querySelector('.current .sunset .value').textContent = sunset;
 
-  // Render the next 7 days.
-  const futureTiles = card.querySelectorAll('.future .oneday');
-  futureTiles.forEach((tile, index) => {
-    const forecast = data.daily.data[index + 1];
-    const forecastFor = luxon.DateTime
-        .fromSeconds(forecast.time)
-        .setZone(data.timezone)
-        .toFormat('ccc');
-    tile.querySelector('.date').textContent = forecastFor;
-    tile.querySelector('.icon').className = `icon ${forecast.icon}`;
-    tile.querySelector('.temp-high .value')
-        .textContent = Math.round(forecast.temperatureHigh);
-    tile.querySelector('.temp-low .value')
-        .textContent = Math.round(forecast.temperatureLow);
-  });
+//   // Render the next 7 days.
+//   const futureTiles = card.querySelectorAll('.future .oneday');
+//   futureTiles.forEach((tile, index) => {
+//     const forecast = data.daily.data[index + 1];
+//     const forecastFor = luxon.DateTime
+//         .fromSeconds(forecast.time)
+//         .setZone(data.timezone)
+//         .toFormat('ccc');
+//     tile.querySelector('.date').textContent = forecastFor;
+//     tile.querySelector('.icon').className = `icon ${forecast.icon}`;
+//     tile.querySelector('.temp-high .value')
+//         .textContent = Math.round(forecast.temperatureHigh);
+//     tile.querySelector('.temp-low .value')
+//         .textContent = Math.round(forecast.temperatureLow);
+//   });
 
-  // If the loading spinner is still visible, remove it.
-  const spinner = card.querySelector('.card-spinner');
-  if (spinner) {
-    card.removeChild(spinner);
-  }
-}
+//   // If the loading spinner is still visible, remove it.
+//   const spinner = card.querySelector('.card-spinner');
+//   if (spinner) {
+//     card.removeChild(spinner);
+//   }
+// }
 
 /**
  * Get's the latest forecast data from the network.
@@ -210,17 +455,21 @@ function getForecastCard(location) {
 function updateData() {
   Object.keys(weatherApp.selectedLocations).forEach((key) => {
     const location = weatherApp.selectedLocations[key];
-    const card = getForecastCard(location);
+    // const card = getForecastCard(location);
     // CODELAB: Add code to call getForecastFromCache
     getForecastFromCache(location.geo)
       .then((forecast) => {
-        renderForecast(card, forecast);
+        location.forecast = forecast;
+        // renderForecast(key, forecast);
+        EventBus.$emit('renderForecast', { key });
       });
 
     // Get the forecast data from the network.
     getForecastFromNetwork(location.geo)
         .then((forecast) => {
-          renderForecast(card, forecast);
+          // renderForecast(key, forecast);
+          location.forecast = forecast;
+          EventBus.$emit('renderForecast', { key });
         });
   });
 }
@@ -273,6 +522,7 @@ function init() {
       .addEventListener('click', toggleAddDialog);
   document.getElementById('butDialogAdd')
       .addEventListener('click', addLocation);
+  EventBus.$emit('init');
 }
 
 init();
