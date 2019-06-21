@@ -45,61 +45,111 @@ events.forEach((eventName) => {
   });
 });
 
-Vue.component('pwa-forecast-list', {
+EventBus.$on('addLocation', ({ data }) => {
+  addLocation(data);
+});
+
+Vue.component('pwa-add-button', {
   template: `
-    <div>
-      <pwa-forecast-card v-for="geoKey in locationKeys" :geokey="geoKey"></pwa-forecast-card>
+    <button id="butAdd" class="fab" aria-label="Add" @click="handleClick">
+      <span class="icon add"></span>
+    </button>
+  `,
+  methods: {
+    handleClick() {
+      EventBus.$emit('toggleAddDialog');
+    }
+  },
+});
+
+Vue.component('pwa-add-dialog', {
+  template: `
+    <div id="addDialogContainer" :class="{ visible: isVisible }">
+      <div class="dialog">
+        <div class="dialog-title">Add new city</div>
+        <div class="dialog-body">
+          <select id="selectCityToAdd" aria-label="City to add" v-model="selected">
+            <!--
+              Values are lat/lon values, use Google Maps to find and add
+              additional cities.
+            -->
+            <option v-for="option in options" v-bind:value="option.value">
+              {{ option.text }}
+            </option>
+          </select>
+        </div>
+        <div class="dialog-buttons">
+          <button id="butDialogCancel" class="button" @click="toggleVisibility">Cancel</button>
+          <button id="butDialogAdd" class="button">Add</button>
+        </div>
+      </div>
     </div>
   `,
   data() {
     return {
-      locations: {},
-    }
-  },
-  computed: {
-    locationKeys() {
-      return Object.keys(this.locations);
-    },
+      isVisible: false,
+      options: [
+        {
+          text: 'Dehli, India',
+          value: '28.6472799,76.8130727',
+        },
+        {
+          text: 'Jakarta, Indonesia',
+          value: '-5.7759362,106.1174957',
+        },
+        {
+          text: 'London, UK',
+          value: '51.5287718,-0.2416815',
+        },
+        {
+          text: 'New York, USA',
+          value: '40.6976701,-74.2598666',
+        },
+        {
+          text: 'Paris, France',
+          value: '48.8589507,2.2770202',
+        },
+        {
+          text: 'Port Lockroy, Antarctica',
+          value: '-64.8251018,-63.496847',
+        },
+        {
+          text: 'San Francisco, USA',
+          value: '37.757815,-122.5076401',
+        },
+        {
+          text: 'Shanghai, China',
+          value: '31.2243085,120.9162955',
+        },
+        {
+          text: 'Tokyo, Japan',
+          value: '35.6735408,139.5703032',
+        },
+      ],
+      selected: '',
+    };
   },
   mounted() {
-    EventBus.$on('init', () => {
-      this.refreshLocations();
-    });
-    EventBus.$on('addLocation', () => {
-      this.refreshLocations();
-    });
-    EventBus.$on('removeLocation', () => {
-      this.refreshLocations();
-    });
-    EventBus.$on('renderForecast', () => {
-      this.refreshLocations();
+    EventBus.$on('toggleAddDialog', () => {
+      this.toggleVisibility();
     });
   },
   methods: {
-    refreshLocations() {
-      this.locations = weatherApp.selectedLocations;
+    addLocation() {
+      const selectedOption = this.getOptionByValue(this.selected);
+      EventBus.$emit('addLocation', {
+        data: {
+          geo: selectedOption.value,
+          label: selectedOption.text,
+        },
+      });
     },
-  },
-});
-
-Vue.component('pwa-forecast-future-tile', {
-  template: `
-    <div class="oneday">
-      <div class="date">{{ date }}</div>
-      <div :class="iconClass" class="icon"></div>
-      <div class="temp-high">
-        <span class="value">{{ temperatureHigh }}</span>°
-      </div>
-      <div class="temp-low">
-        <span class="value">{{ temperatureLow }}</span>°
-      </div>
-    </div>
-  `,
-  props: {
-    date: String,
-    iconClass: String,
-    temperatureHigh: Number,
-    temperatureLow: Number,
+    getOptionByValue(value) {
+      return this.options.find(option => option.value === value);
+    },
+    toggleVisibility() {
+      this.isVisible = !this.isVisible;
+    },
   },
 });
 
@@ -233,7 +283,7 @@ Vue.component('pwa-forecast-card', {
             .fromSeconds(forecast.time)
             .setZone(data.timezone)
             .toFormat('ccc');
-          
+
           return {
             date: forecastFor,
             iconClass: forecast.icon,
@@ -245,28 +295,87 @@ Vue.component('pwa-forecast-card', {
   },
 });
 
+Vue.component('pwa-forecast-future-tile', {
+  template: `
+    <div class="oneday">
+      <div class="date">{{ date }}</div>
+      <div :class="iconClass" class="icon"></div>
+      <div class="temp-high">
+        <span class="value">{{ temperatureHigh }}</span>°
+      </div>
+      <div class="temp-low">
+        <span class="value">{{ temperatureLow }}</span>°
+      </div>
+    </div>
+  `,
+  props: {
+    date: String,
+    iconClass: String,
+    temperatureHigh: Number,
+    temperatureLow: Number,
+  },
+});
+
+Vue.component('pwa-forecast-list', {
+  template: `
+    <div>
+      <pwa-forecast-card v-for="geoKey in locationKeys" :geokey="geoKey"></pwa-forecast-card>
+    </div>
+  `,
+  data() {
+    return {
+      locations: {},
+    }
+  },
+  computed: {
+    locationKeys() {
+      return Object.keys(this.locations);
+    },
+  },
+  mounted() {
+    EventBus.$on('init', () => {
+      this.refreshLocations();
+    });
+    EventBus.$on('addLocation', () => {
+      this.refreshLocations();
+    });
+    EventBus.$on('removeLocation', () => {
+      this.refreshLocations();
+    });
+    EventBus.$on('renderForecast', () => {
+      this.refreshLocations();
+    });
+  },
+  methods: {
+    refreshLocations() {
+      this.locations = weatherApp.selectedLocations;
+    },
+  },
+});
+
 new Vue({
   el: '#app'
 });
 
-/**
- * Toggles the visibility of the add location dialog box.
- */
-function toggleAddDialog() {
-  weatherApp.addDialogContainer.classList.toggle('visible');
-}
+// /**
+//  * Toggles the visibility of the add location dialog box.
+//  */
+// function toggleAddDialog() {
+//   weatherApp.addDialogContainer.classList.toggle('visible');
+// }
 
 /**
  * Event handler for butDialogAdd, adds the selected location to the list.
  */
-function addLocation() {
+function addLocation({ geo, label }) {
   // Hide the dialog
-  toggleAddDialog();
+  // toggleAddDialog();
+  EventBus.$emit('toggleAddDialog');
   // Get the selected city
-  const select = document.getElementById('selectCityToAdd');
-  const selected = select.options[select.selectedIndex];
-  const geo = selected.value;
-  const label = selected.textContent;
+  // const select = document.getElementById('selectCityToAdd');
+  // const selected = select.options[select.selectedIndex];
+  // const geo = selected.value;
+  // const label = selected.textContent;
   const location = { label, geo };
   // Create a new card & get the weather data from the server
   // const card = getForecastCard(location);
@@ -502,9 +611,9 @@ function init() {
 
   // Set up the event handlers for all of the buttons.
   document.getElementById('butRefresh').addEventListener('click', updateData);
-  document.getElementById('butAdd').addEventListener('click', toggleAddDialog);
-  document.getElementById('butDialogCancel')
-      .addEventListener('click', toggleAddDialog);
+  // document.getElementById('butAdd').addEventListener('click', toggleAddDialog);
+  // document.getElementById('butDialogCancel')
+  //     .addEventListener('click', toggleAddDialog);
   document.getElementById('butDialogAdd')
       .addEventListener('click', addLocation);
   EventBus.$emit('init');
