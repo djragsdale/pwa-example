@@ -40,8 +40,8 @@ const events = [
 ];
 
 events.forEach((eventName) => {
-  EventBus.$on(eventName, () => {
-    console.log(`EVENT LOGGER: ${eventName}`);
+  EventBus.$on(eventName, (data) => {
+    console.log(`EVENT LOGGER: ${eventName}`, data);
   });
 });
 
@@ -86,7 +86,7 @@ Vue.component('pwa-add-dialog', {
         </div>
         <div class="dialog-buttons">
           <button id="butDialogCancel" class="button" @click="toggleVisibility">Cancel</button>
-          <button id="butDialogAdd" class="button">Add</button>
+          <button id="butDialogAdd" class="button" @click="handleAddLocation">Add</button>
         </div>
       </div>
     </div>
@@ -143,7 +143,7 @@ Vue.component('pwa-add-dialog', {
     });
   },
   methods: {
-    addLocation() {
+    handleAddLocation() {
       const selectedOption = this.getOptionByValue(this.selected);
       EventBus.$emit('addLocation', {
         data: {
@@ -170,9 +170,9 @@ Vue.component('pwa-forecast-card', {
         </svg>
       </div>
       <button class="remove-city" @click="handleRemove">&times;</button>
-      <div class="city-key" hidden></div>
+      <div class="city-key" hidden>{{ geokey }}</div>
       <div class="card-last-updated" hidden>{{ lastUpdated }}</div>
-      <div class="location">&nbsp;</div>
+      <div class="location">{{ locationLabel }}</div>
       <div class="date">{{ date }}</div>
       <div class="description">{{ description }}</div>
       <div class="current">
@@ -231,12 +231,14 @@ Vue.component('pwa-forecast-card', {
       isVisible: true,
       lastUpdated: 0,
       location: {},
+      locationLabel: '',
       sunrise: null,
       sunset: null,
       time: null,
     };
   },
   mounted() {
+    console.log('pwa-forecast-card mounted', this.geokey);
     EventBus.$on('renderForecast', ({ key }) => {
       if (!(this.geokey in weatherApp.selectedLocations)) {
         this.isVisible = false;
@@ -244,9 +246,9 @@ Vue.component('pwa-forecast-card', {
       if (key !== this.geokey) return;
       if (!(key in weatherApp.selectedLocations)) return;
 
-      console.log('setLocation', weatherApp.selectedLocations[key].forecast);
+      console.log('before setLocation', weatherApp.selectedLocations[key].forecast);
       if (weatherApp.selectedLocations[key].forecast) {
-        this.setLocation(weatherApp.selectedLocations[key].forecast);
+        this.setLocation(weatherApp.selectedLocations[key]);
         this.isLoading = false;
       }
       this.isVisible = true;
@@ -256,8 +258,9 @@ Vue.component('pwa-forecast-card', {
     handleRemove() {
 
     },
-    setLocation(data) {
-      console.log('setLocation', JSON.parse(JSON.stringify(data)));
+    setLocation(location) {
+      const { forecast: data } = location;
+      console.log('setLocation method', JSON.parse(JSON.stringify(data)));
       if (!data) {
         console.log('data not found');
         return;
@@ -269,6 +272,7 @@ Vue.component('pwa-forecast-card', {
       }
 
       this.location = data;
+      this.locationLabel = location.label; // TODO: Why is this not here anymore????
 
       this.lastUpdated = parseInt(data.currently.time);
 
@@ -338,7 +342,7 @@ Vue.component('pwa-forecast-future-tile', {
 Vue.component('pwa-forecast-list', {
   template: `
     <div>
-      <pwa-forecast-card v-for="geoKey in locationKeys" :geokey="geoKey"></pwa-forecast-card>
+      <pwa-forecast-card v-for="geoKey in locationKeys" :geokey="geoKey" :key="geoKey"></pwa-forecast-card>
     </div>
   `,
   data() {
@@ -371,6 +375,7 @@ Vue.component('pwa-forecast-list', {
   methods: {
     refreshLocations() {
       this.locations = weatherApp.selectedLocations;
+      console.log('pwa-forecast-list refreshLocations', this.locations);
     },
   },
 });
@@ -389,7 +394,9 @@ new Vue({
 /**
  * Event handler for butDialogAdd, adds the selected location to the list.
  */
-function addLocation({ geo, label }) {
+function addLocation(data) {
+  console.log('addLocation fn', data);
+  const { geo, label } = data;
   // Hide the dialog
   // toggleAddDialog();
   EventBus.$emit('toggleAddDialog');
@@ -405,6 +412,7 @@ function addLocation({ geo, label }) {
   weatherApp.selectedLocations[geo] = location;
   saveLocationList(weatherApp.selectedLocations);
   getForecastFromNetwork(geo).then((forecast) => {
+    console.log('Adding new location from network.', label);
     // renderForecast(card, forecast);
     weatherApp.selectedLocations[geo].forecast = forecast;
     saveLocationList(weatherApp.selectedLocations);
@@ -575,6 +583,7 @@ function updateData() {
     // CODELAB: Add code to call getForecastFromCache
     getForecastFromCache(location.geo)
       .then((forecast) => {
+        console.log('get from cache', key);
         location.forecast = forecast;
         // renderForecast(key, forecast);
         EventBus.$emit('renderForecast', { key });
@@ -583,6 +592,7 @@ function updateData() {
     // Get the forecast data from the network.
     getForecastFromNetwork(location.geo)
         .then((forecast) => {
+          console.log('get from network', key);
           // renderForecast(key, forecast);
           location.forecast = forecast;
           EventBus.$emit('renderForecast', { key });
@@ -636,8 +646,8 @@ function init() {
   // document.getElementById('butAdd').addEventListener('click', toggleAddDialog);
   // document.getElementById('butDialogCancel')
   //     .addEventListener('click', toggleAddDialog);
-  document.getElementById('butDialogAdd')
-      .addEventListener('click', addLocation);
+  // document.getElementById('butDialogAdd')
+  //     .addEventListener('click', addLocation);
   EventBus.$emit('init');
 }
 
