@@ -33,6 +33,7 @@ const events = [
   'init',
   'loadLocationList',
   'removeLocation',
+  'refreshLocations',
   'renderForecast',
   'saveLocationList',
   'toggleAddDialog',
@@ -348,13 +349,14 @@ Vue.component('pwa-forecast-list', {
   data() {
     return {
       locations: {},
+      locationKeys: [],
     }
   },
-  computed: {
-    locationKeys() {
-      return Object.keys(this.locations);
-    },
-  },
+  // computed: {
+    // locationKeys() {
+    //   return Object.keys(this.locations);
+    // },
+  // },
   mounted() {
     EventBus.$on('init', () => {
       this.refreshLocations();
@@ -376,6 +378,7 @@ Vue.component('pwa-forecast-list', {
     refreshLocations() {
       this.locations = weatherApp.selectedLocations;
       console.log('pwa-forecast-list refreshLocations', this.locations);
+      this.locationKeys = Object.keys(this.locations);
     },
   },
 });
