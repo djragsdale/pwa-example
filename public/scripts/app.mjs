@@ -32,8 +32,8 @@ const events = [
   'getForecastFromNetwork',
   'init',
   'loadLocationList',
-  'removeLocation',
   'refreshLocations',
+  'removeLocation',
   'renderForecast',
   'saveLocationList',
   'toggleAddDialog',
@@ -51,8 +51,8 @@ EventBus.$on('addLocation', ({ data }) => {
   EventBus.$emit('refreshLocations');
 });
 
-EventBus.$on('removeLocation', ({ data }) => {
-  removeLocation(data);
+EventBus.$on('removeLocation', ({ key }) => {
+  removeLocation(key);
   EventBus.$emit('refreshLocations');
 });
 
@@ -257,7 +257,7 @@ Vue.component('pwa-forecast-card', {
   },
   methods: {
     handleRemove() {
-
+      EventBus.$emit('removeLocation', { key: this.geokey });
     },
     setLocation(location) {
       const { forecast: data } = location;
@@ -552,28 +552,28 @@ function getForecastFromCache(coords) {
     });
 }
 
-/**
- * Get's the HTML element for the weather forecast, or clones the template
- * and adds it to the DOM if we're adding a new item.
- *
- * @param {Object} location Location object
- * @return {Element} The element for the weather forecast.
- */
-function getForecastCard(location) {
-  const id = location.geo;
-  const card = document.getElementById(id);
-  if (card) {
-    return card;
-  }
-  const newCard = document.getElementById('weather-template').cloneNode(true);
-  newCard.querySelector('.location').textContent = location.label;
-  newCard.setAttribute('id', id);
-  newCard.querySelector('.remove-city')
-      .addEventListener('click', removeLocation);
-  document.querySelector('main').appendChild(newCard);
-  newCard.removeAttribute('hidden');
-  return newCard;
-}
+// /**
+//  * Get's the HTML element for the weather forecast, or clones the template
+//  * and adds it to the DOM if we're adding a new item.
+//  *
+//  * @param {Object} location Location object
+//  * @return {Element} The element for the weather forecast.
+//  */
+// function getForecastCard(location) {
+//   const id = location.geo;
+//   const card = document.getElementById(id);
+//   if (card) {
+//     return card;
+//   }
+//   const newCard = document.getElementById('weather-template').cloneNode(true);
+//   newCard.querySelector('.location').textContent = location.label;
+//   newCard.setAttribute('id', id);
+//   newCard.querySelector('.remove-city')
+//       .addEventListener('click', removeLocation);
+//   document.querySelector('main').appendChild(newCard);
+//   newCard.removeAttribute('hidden');
+//   return newCard;
+// }
 
 /**
  * Gets the latest weather forecast data and updates each card with the
