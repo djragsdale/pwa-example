@@ -417,15 +417,6 @@ Vue.component('pwa-forecast-list', {
     // },
   // },
   mounted() {
-    EventBus.$on('init', () => {
-      this.refreshLocations();
-    });
-    // EventBus.$on('addLocation', () => {
-    //   this.refreshLocations();
-    // });
-    // EventBus.$on('removeLocation', () => {
-    //   this.refreshLocations();
-    // });
     EventBus.$on('refreshLocations', () => {
       this.refreshLocations();
     });
@@ -526,17 +517,7 @@ function loadLocationList() {
 function init() {
   // Get the location list, and update the UI.
   weatherApp.selectedLocations = loadLocationList();
-  // updateData();
   EventBus.$emit('updateData');
-
-  // Set up the event handlers for all of the buttons.
-  // document.getElementById('butRefresh').addEventListener('click', updateData);
-  // document.getElementById('butAdd').addEventListener('click', toggleAddDialog);
-  // document.getElementById('butDialogCancel')
-  //     .addEventListener('click', toggleAddDialog);
-  // document.getElementById('butDialogAdd')
-  //     .addEventListener('click', addLocation);
-  EventBus.$emit('init');
 }
 
 init();
