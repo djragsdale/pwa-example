@@ -57,6 +57,10 @@ EventBus.$on('removeLocation', ({ key }) => {
   EventBus.$emit('refreshLocations');
 });
 
+EventBus.$on('updateData', () => {
+  updateData();
+});
+
 Vue.component('pwa-add-button', {
   template: `
     <button id="butAdd" class="fab" aria-label="Add" @click="handleClick">
@@ -164,6 +168,15 @@ Vue.component('pwa-add-dialog', {
 });
 
 Vue.component('pwa-button-install', PwaButtonInstall);
+
+Vue.component('pwa-button-refresh', {
+  template: `<button id="butRefresh" aria-label="Refresh" @click="handleClick"></button>`,
+  methods: {
+    handleClick() {
+      EventBus.$emit('updateData');
+    },
+  },
+});
 
 Vue.component('pwa-forecast-card', {
   template: `
@@ -645,10 +658,11 @@ function loadLocationList() {
 function init() {
   // Get the location list, and update the UI.
   weatherApp.selectedLocations = loadLocationList();
-  updateData();
+  // updateData();
+  EventBus.$emit('updateData');
 
   // Set up the event handlers for all of the buttons.
-  document.getElementById('butRefresh').addEventListener('click', updateData);
+  // document.getElementById('butRefresh').addEventListener('click', updateData);
   // document.getElementById('butAdd').addEventListener('click', toggleAddDialog);
   // document.getElementById('butDialogCancel')
   //     .addEventListener('click', toggleAddDialog);
