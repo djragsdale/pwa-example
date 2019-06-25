@@ -73,7 +73,10 @@ EventBus.$on('addLocation', ({ data }) => {
 });
 
 EventBus.$on('removeLocation', ({ key }) => {
-  removeLocation(key);
+  if (weatherApp.selectedLocations[key]) {
+    delete weatherApp.selectedLocations[key];
+    saveLocationList(weatherApp.selectedLocations);
+  }
   EventBus.$emit('refreshLocations');
 });
 
@@ -422,20 +425,6 @@ Vue.component('pwa-forecast-list', {
 new Vue({
   el: '#app'
 });
-
-/**
- * Event handler for .remove-city, removes a location from the list.
- *
- * @param {Event} evt
- */
-function removeLocation(geoKey) {
-  // const parent = evt.srcElement.parentElement;
-  // parent.setAttribute('hidden', true);
-  if (weatherApp.selectedLocations[geoKey]) {
-    delete weatherApp.selectedLocations[geoKey];
-    saveLocationList(weatherApp.selectedLocations);
-  }
-}
 
 /**
  * Get's the latest forecast data from the network.
