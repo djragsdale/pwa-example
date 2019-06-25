@@ -81,7 +81,27 @@ EventBus.$on('removeLocation', ({ key }) => {
 });
 
 EventBus.$on('updateData', () => {
-  updateData();
+  Object.keys(weatherApp.selectedLocations).forEach((key) => {
+    const location = weatherApp.selectedLocations[key];
+    // const card = getForecastCard(location);
+    // CODELAB: Add code to call getForecastFromCache
+    getForecastFromCache(location.geo)
+      .then((forecast) => {
+        console.log('get from cache', key);
+        location.forecast = forecast;
+        // renderForecast(key, forecast);
+        EventBus.$emit('renderForecast', { key });
+      });
+
+    // Get the forecast data from the network.
+    getForecastFromNetwork(location.geo)
+      .then((forecast) => {
+        console.log('get from network', key);
+        // renderForecast(key, forecast);
+        location.forecast = forecast;
+        EventBus.$emit('renderForecast', { key });
+      });
+  });
 });
 
 Vue.component('pwa-add-button', {
@@ -465,34 +485,6 @@ function getForecastFromCache(coords) {
       console.error('Error getting data from cache', err);
       return null;
     });
-}
-
-/**
- * Gets the latest weather forecast data and updates each card with the
- * new data.
- */
-function updateData() {
-  Object.keys(weatherApp.selectedLocations).forEach((key) => {
-    const location = weatherApp.selectedLocations[key];
-    // const card = getForecastCard(location);
-    // CODELAB: Add code to call getForecastFromCache
-    getForecastFromCache(location.geo)
-      .then((forecast) => {
-        console.log('get from cache', key);
-        location.forecast = forecast;
-        // renderForecast(key, forecast);
-        EventBus.$emit('renderForecast', { key });
-      });
-
-    // Get the forecast data from the network.
-    getForecastFromNetwork(location.geo)
-        .then((forecast) => {
-          console.log('get from network', key);
-          // renderForecast(key, forecast);
-          location.forecast = forecast;
-          EventBus.$emit('renderForecast', { key });
-        });
-  });
 }
 
 /**
