@@ -18,6 +18,7 @@
 'use strict';
 
 import EventBus from '/scripts/EventBus.mjs';
+import { PwaButtonInstall } from '/scripts/install.mjs';
 import Vue from '/scripts/vue/vue.esm.browser.js';
 
 const weatherApp = {
@@ -161,6 +162,8 @@ Vue.component('pwa-add-dialog', {
     },
   },
 });
+
+Vue.component('pwa-button-install', PwaButtonInstall);
 
 Vue.component('pwa-forecast-card', {
   template: `
