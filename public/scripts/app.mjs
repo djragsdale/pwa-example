@@ -298,7 +298,6 @@ Vue.component('pwa-forecast-card', {
     };
   },
   mounted() {
-    console.log('pwa-forecast-card mounted', this.geokey);
     EventBus.$on('renderForecast', ({ key }) => {
       if (!(this.geokey in weatherApp.selectedLocations)) {
         this.isVisible = false;
@@ -306,7 +305,6 @@ Vue.component('pwa-forecast-card', {
       if (key !== this.geokey) return;
       if (!(key in weatherApp.selectedLocations)) return;
 
-      console.log('before setLocation', weatherApp.selectedLocations[key].forecast);
       if (weatherApp.selectedLocations[key].forecast) {
         this.setLocation(weatherApp.selectedLocations[key]);
         this.isLoading = false;
@@ -320,9 +318,7 @@ Vue.component('pwa-forecast-card', {
     },
     setLocation(location) {
       const { forecast: data } = location;
-      console.log('setLocation method', JSON.parse(JSON.stringify(data)));
       if (!data) {
-        console.log('data not found');
         return;
       }
       // Find out when the element was last updated.
@@ -411,11 +407,6 @@ Vue.component('pwa-forecast-list', {
       locationKeys: [],
     }
   },
-  // computed: {
-    // locationKeys() {
-    //   return Object.keys(this.locations);
-    // },
-  // },
   mounted() {
     EventBus.$on('refreshLocations', () => {
       this.refreshLocations();
@@ -427,7 +418,6 @@ Vue.component('pwa-forecast-list', {
   methods: {
     refreshLocations() {
       this.locations = weatherApp.selectedLocations;
-      console.log('pwa-forecast-list refreshLocations', this.locations);
       this.locationKeys = Object.keys(this.locations);
     },
   },
