@@ -186,6 +186,7 @@ function startServer() {
   app.get('/forecast', getForecast);
 
   // Handle requests for static files
+  app.use('/scripts/vue', express.static('node_modules/vue/dist'));
   app.use(express.static('public'));
 
   // Start the server

@@ -26,13 +26,13 @@ if (workbox) {
 }
 
 // CODELAB: Update cache names any time any of the cached files change.
-const CACHE_NAME = 'static-cache-v3';
-const DATA_CACHE_NAME = 'data-cache-v2';
+const CACHE_NAME = 'static-cache-v4';
+const DATA_CACHE_NAME = 'data-cache-v3';
 
 // TODO: Determine which files should use the StaleWhileRevalidate strategy
 workbox.routing.registerRoute(
   // Cache all static files.
-  /(\/|\.(css|html|js|svg))$/,
+  /(\/|\.(css|html|ico|js|mjs|png|svg))$/g, // TODO: Get it to recognize png and mjs
   // Use the cache if it's available.
   new workbox.strategies.CacheFirst({
     // Use a custom cache name.
