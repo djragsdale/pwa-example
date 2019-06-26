@@ -18,6 +18,14 @@
 'use strict';
 
 import EventBus from '/scripts/EventBus.mjs';
+import {
+  PwaAddButton,
+  PwaAddDialog,
+  PwaButtonRefresh,
+  PwaForecastCard,
+  PwaForecastFutureTile,
+  PwaForecastList,
+} from '/scripts/components/index.mjs';
 import { PwaButtonInstall } from '/scripts/install.mjs';
 import Vue from '/scripts/vue/vue.esm.browser.js';
 
@@ -27,7 +35,7 @@ const weatherApp = {
 
 const events = [
   'addLocation',
-  'getForecastCard',
+  'getData',
   'getForecastFromCache',
   'getForecastFromNetwork',
   'init',
@@ -66,10 +74,11 @@ EventBus.$on('addLocation', ({ data }) => {
     weatherApp.selectedLocations[geo].forecast = forecast;
     saveLocationList(weatherApp.selectedLocations);
     EventBus.$emit('renderForecast', {
-      key: geo
+      data: weatherApp,
+      key: geo,
     });
   });
-  EventBus.$emit('refreshLocations');
+  EventBus.$emit('refreshLocations', { data: weatherApp.selectedLocations });
 });
 
 EventBus.$on('removeLocation', ({ key }) => {
@@ -77,7 +86,7 @@ EventBus.$on('removeLocation', ({ key }) => {
     delete weatherApp.selectedLocations[key];
     saveLocationList(weatherApp.selectedLocations);
   }
-  EventBus.$emit('refreshLocations');
+  EventBus.$emit('refreshLocations', { data: weatherApp.selectedLocations });
 });
 
 EventBus.$on('updateData', () => {
@@ -90,7 +99,10 @@ EventBus.$on('updateData', () => {
         console.log('get from cache', key);
         location.forecast = forecast;
         // renderForecast(key, forecast);
-        EventBus.$emit('renderForecast', { key });
+        EventBus.$emit('renderForecast', {
+          data: weatherApp,
+          key,
+        });
       });
 
     // Get the forecast data from the network.
@@ -99,329 +111,21 @@ EventBus.$on('updateData', () => {
         console.log('get from network', key);
         // renderForecast(key, forecast);
         location.forecast = forecast;
-        EventBus.$emit('renderForecast', { key });
+        EventBus.$emit('renderForecast', {
+          data: weatherApp,
+          key,
+        });
       });
   });
 });
 
-Vue.component('pwa-add-button', {
-  template: `
-    <button id="butAdd" class="fab" aria-label="Add" @click="handleClick">
-      <span class="icon add"></span>
-    </button>
-  `,
-  methods: {
-    handleClick() {
-      EventBus.$emit('toggleAddDialog');
-    }
-  },
-});
-
-Vue.component('pwa-add-dialog', {
-  template: `
-    <div id="addDialogContainer" :class="{ visible: isVisible }">
-      <div class="dialog">
-        <div class="dialog-title">Add new city</div>
-        <div class="dialog-body">
-          <select id="selectCityToAdd" aria-label="City to add" v-model="selected">
-            <!--
-              Values are lat/lon values, use Google Maps to find and add
-              additional cities.
-            -->
-            <option v-for="option in options" v-bind:value="option.value">
-              {{ option.text }}
-            </option>
-          </select>
-        </div>
-        <div class="dialog-buttons">
-          <button id="butDialogCancel" class="button" @click="toggleVisibility">Cancel</button>
-          <button id="butDialogAdd" class="button" @click="handleAddLocation">Add</button>
-        </div>
-      </div>
-    </div>
-  `,
-  data() {
-    const options = [
-      {
-        text: 'Dehli, India',
-        value: '28.6472799,76.8130727',
-      },
-      {
-        text: 'Jakarta, Indonesia',
-        value: '-5.7759362,106.1174957',
-      },
-      {
-        text: 'London, UK',
-        value: '51.5287718,-0.2416815',
-      },
-      {
-        text: 'New York, USA',
-        value: '40.6976701,-74.2598666',
-      },
-      {
-        text: 'Paris, France',
-        value: '48.8589507,2.2770202',
-      },
-      {
-        text: 'Port Lockroy, Antarctica',
-        value: '-64.8251018,-63.496847',
-      },
-      {
-        text: 'San Francisco, USA',
-        value: '37.757815,-122.5076401',
-      },
-      {
-        text: 'Shanghai, China',
-        value: '31.2243085,120.9162955',
-      },
-      {
-        text: 'Tokyo, Japan',
-        value: '35.6735408,139.5703032',
-      },
-    ];
-
-    return {
-      isVisible: false,
-      options: options,
-      selected: options[0].value,
-    };
-  },
-  mounted() {
-    EventBus.$on('toggleAddDialog', () => {
-      this.toggleVisibility();
-    });
-  },
-  methods: {
-    handleAddLocation() {
-      const selectedOption = this.getOptionByValue(this.selected);
-      EventBus.$emit('addLocation', {
-        data: {
-          geo: selectedOption.value,
-          label: selectedOption.text,
-        },
-      });
-    },
-    getOptionByValue(value) {
-      return this.options.find(option => option.value === value);
-    },
-    toggleVisibility() {
-      this.isVisible = !this.isVisible;
-    },
-  },
-});
-
+Vue.component('pwa-add-button', PwaAddButton);
+Vue.component('pwa-add-dialog', PwaAddDialog);
 Vue.component('pwa-button-install', PwaButtonInstall);
-
-Vue.component('pwa-button-refresh', {
-  template: `<button id="butRefresh" aria-label="Refresh" @click="handleClick"></button>`,
-  methods: {
-    handleClick() {
-      EventBus.$emit('updateData');
-    },
-  },
-});
-
-Vue.component('pwa-forecast-card', {
-  template: `
-    <div v-if="isVisible" :id="location.geo" class="weather-card">
-      <div v-if="isLoading" class="card-spinner">
-        <svg viewBox="0 0 32 32" width="32" height="32">
-          <circle cx="16" cy="16" r="14" fill="none"></circle>
-        </svg>
-      </div>
-      <button class="remove-city" @click="handleRemove">&times;</button>
-      <div class="city-key" hidden>{{ geokey }}</div>
-      <div class="card-last-updated" hidden>{{ lastUpdated }}</div>
-      <div class="location">{{ locationLabel }}</div>
-      <div class="date">{{ date }}</div>
-      <div class="description">{{ description }}</div>
-      <div class="current">
-        <div class="visual">
-          <div :class="currentIconName" class="icon"></div>
-          <div class="temperature">
-            <span class="value">{{ currentTemperature }}</span><span class="scale">°F</span>
-          </div>
-        </div>
-        <div class="description">
-          <div class="humidity">
-            <span class="label">Humidity:</span>
-            <span class="value">{{ currentHumidity }}</span><span class="scale">%</span>
-          </div>
-          <div class="wind">
-            <span class="label">Wind:</span>
-            <span class="value">{{ currentWindSpeed }}</span>
-            <span class="scale">mph</span>
-            <span class="direction">{{ currentWindDirection }}</span>°
-          </div>
-          <div class="sunrise">
-            <span class="label">Sunrise:</span>
-            <span class="value">{{ sunrise }}</span>
-          </div>
-          <div class="sunset">
-              <span class="label">Sunset:</span>
-              <span class="value">{{ sunset }}</span>
-            </div>
-        </div>
-      </div>
-      <div v-if="location" class="future">
-        <pwa-forecast-future-tile
-          v-for="forecast in futureTiles"
-          :date="forecast.date"
-          :iconClass="forecast.iconClass"
-          :temperatureHigh="forecast.temperatureHigh"
-          :temperatureLow="forecast.temperatureLow"
-        ></pwa-forecast-future-tile>
-      </div>
-    </div>
-  `,
-  props: {
-    geokey: String,
-  },
-  data() {
-    return {
-      currentHumidity: null,
-      currentIconName: null,
-      currentTemperature: null,
-      currentWindDirection: null,
-      currentWindSpeed: null,
-      date: null,
-      description: null,
-      futureTiles: [],
-      isLoading: true,
-      isVisible: true,
-      lastUpdated: 0,
-      location: {},
-      locationLabel: '',
-      sunrise: null,
-      sunset: null,
-      time: null,
-    };
-  },
-  mounted() {
-    EventBus.$on('renderForecast', ({ key }) => {
-      if (!(this.geokey in weatherApp.selectedLocations)) {
-        this.isVisible = false;
-      }
-      if (key !== this.geokey) return;
-      if (!(key in weatherApp.selectedLocations)) return;
-
-      if (weatherApp.selectedLocations[key].forecast) {
-        this.setLocation(weatherApp.selectedLocations[key]);
-        this.isLoading = false;
-      }
-      this.isVisible = true;
-    });
-  },
-  methods: {
-    handleRemove() {
-      EventBus.$emit('removeLocation', { key: this.geokey });
-    },
-    setLocation(location) {
-      const { forecast: data } = location;
-      if (!data) {
-        return;
-      }
-      // Find out when the element was last updated.
-      // If the data on the element is newer, skip the update.
-      if (this.lastUpdated >= data.currently.time) {
-        return;
-      }
-
-      this.location = data;
-      this.locationLabel = location.label; // TODO: Why is this not here anymore????
-
-      this.lastUpdated = parseInt(data.currently.time);
-
-      // Render the forecast data into the card.
-      this.description = data.currently.summary;
-      const forecastFrom = luxon.DateTime
-        .fromSeconds(data.currently.time)
-        .setZone(data.timezone)
-        .toFormat('DDDD t');
-      this.date = forecastFrom;
-      this.currentIconName = data.currently.icon;
-      this.currentTemperature = Math.round(data.currently.temperature);
-      this.currentHumidity = Math.round(data.currently.humidity * 100);
-      this.currentWindSpeed = Math.round(data.currently.windSpeed);
-      this.currentWindDirection = Math.round(data.currently.windBearing);
-      const sunrise = luxon.DateTime
-        .fromSeconds(data.daily.data[0].sunriseTime)
-        .setZone(data.timezone)
-        .toFormat('t');
-      this.sunrise = sunrise;
-      const sunset = luxon.DateTime
-        .fromSeconds(data.daily.data[0].sunsetTime)
-        .setZone(data.timezone)
-        .toFormat('t');
-      this.sunset = sunset;
-
-      // Render the next 7 days.
-      this.futureTiles = data.daily.data.slice(1)
-        .map((forecast) => {
-          const forecastFor = luxon.DateTime
-            .fromSeconds(forecast.time)
-            .setZone(data.timezone)
-            .toFormat('ccc');
-
-          return {
-            date: forecastFor,
-            iconClass: forecast.icon,
-            temperatureHigh: Math.round(forecast.temperatureHigh),
-            temperatureLow: Math.round(forecast.temperatureLow),
-          };
-        });
-    },
-  },
-});
-
-Vue.component('pwa-forecast-future-tile', {
-  template: `
-    <div class="oneday">
-      <div class="date">{{ date }}</div>
-      <div :class="iconClass" class="icon"></div>
-      <div class="temp-high">
-        <span class="value">{{ temperatureHigh }}</span>°
-      </div>
-      <div class="temp-low">
-        <span class="value">{{ temperatureLow }}</span>°
-      </div>
-    </div>
-  `,
-  props: {
-    date: String,
-    iconClass: String,
-    temperatureHigh: Number,
-    temperatureLow: Number,
-  },
-});
-
-Vue.component('pwa-forecast-list', {
-  template: `
-    <div>
-      <pwa-forecast-card v-for="geoKey in locationKeys" :geokey="geoKey" :key="geoKey"></pwa-forecast-card>
-    </div>
-  `,
-  data() {
-    return {
-      locations: {},
-      locationKeys: [],
-    }
-  },
-  mounted() {
-    EventBus.$on('refreshLocations', () => {
-      this.refreshLocations();
-    });
-    EventBus.$on('renderForecast', () => {
-      this.refreshLocations();
-    });
-  },
-  methods: {
-    refreshLocations() {
-      this.locations = weatherApp.selectedLocations;
-      this.locationKeys = Object.keys(this.locations);
-    },
-  },
-});
+Vue.component('pwa-button-refresh', PwaButtonRefresh);
+Vue.component('pwa-forecast-card', PwaForecastCard);
+Vue.component('pwa-forecast-future-tile', PwaForecastFutureTile);
+Vue.component('pwa-forecast-list', PwaForecastList);
 
 new Vue({
   el: '#app'
